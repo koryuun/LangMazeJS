@@ -2,55 +2,45 @@ import { Scene } from 'phaser'
 import { Maze, ExternWall, Wall } from '../Maze'
 
 
-const CELL_SIZE = 30
-const MAZE_WIDTH = 20
-const MAZE_HEIGHT = 20
+const CELL_SIZE = 20
+const MAZE_WIDTH = 30
+const MAZE_HEIGHT = 30
 
-const MAZE_X = 512 - (MAZE_WIDTH * CELL_SIZE) / 2
-const MAZE_Y = 384 - (MAZE_HEIGHT * CELL_SIZE) / 2
+const MAZE_X = 400 - (MAZE_WIDTH * CELL_SIZE) / 2
+const MAZE_Y = 400 - (MAZE_HEIGHT * CELL_SIZE) / 2
 
+function drawCanvasCell(ctx, cell, x, y) {
+    ctx.beginPath()
+    if(cell.getLeftWall()) {        
+        ctx.moveTo(x, y)
+        ctx.lineTo(x, y + CELL_SIZE)
+    }
 
-function drawMaze(graphics, maze, baseX = 0, baseY = 0) {
+    if(cell.getTopWall()) {
+        ctx.moveTo(x, y)
+        ctx.lineTo(x + CELL_SIZE, y)
+    }
+    
+    if(cell.getRightWall() instanceof ExternWall) {
+        ctx.moveTo(x + CELL_SIZE, y)
+        ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE)
+    }
+
+    if(cell.getBottomWall() instanceof ExternWall) {
+        ctx.moveTo(x, y + CELL_SIZE)
+        ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE)
+    }
+
+    ctx.stroke()
+}
+
+function drawCanvasMaze(ctx, maze) {
+    ctx.clearRect(0, 0, MAZE_WIDTH * CELL_SIZE, MAZE_HEIGHT * CELL_SIZE);
+
     for (let y = 0; y < maze.getHeight(); y++) {
         for (let x = 0; x < maze.getWidth(); x++) {
             const cell = maze.getCell(x, y);
-            const cellX = x * CELL_SIZE + baseX;
-            const cellY = y * CELL_SIZE + baseY;
-            const leftWall = cell.getLeftWall()
-            if (leftWall) {
-                if(leftWall instanceof ExternWall) {    
-                    graphics.lineStyle(2, 0xFFFF00, 1.0);                                        
-                } else {
-                    graphics.lineStyle(1, 0x000000, 1.0);                    
-                }   
-                graphics.lineBetween(cellX, cellY, cellX, cellY + CELL_SIZE)
-                
-            }
-
-            const topWall = cell.getTopWall()
-            if (topWall) {
-                if(topWall instanceof ExternWall) {    
-                    graphics.lineStyle(2, 0xFFFF00, 1.0);                    
-                } else {
-                    graphics.lineStyle(1, 0x000000, 1.0);                    
-                }   
-                graphics.lineBetween(cellX, cellY, cellX + CELL_SIZE, cellY)
-
-                
-            }               
-                    
-            graphics.lineStyle(2, 0xFFFF00, 1.0);
-
-            if(x === maze.getWidth() - 1) {
-                if (cell.getRightWall()) {                    
-                    graphics.lineBetween(cellX + CELL_SIZE, cellY, cellX + CELL_SIZE, cellY + CELL_SIZE);
-                }
-            }
-            if(y === maze.getHeight() - 1) {
-                if (cell.getBottomWall()) {                    
-                    graphics.lineBetween(cellX, cellY + CELL_SIZE, cellX + CELL_SIZE, cellY + CELL_SIZE);
-                }
-            }            
+            drawCanvasCell(ctx, cell, x * CELL_SIZE, y * CELL_SIZE)
         }
     }
 }
@@ -66,28 +56,16 @@ export class Game extends Scene
         
         this.load.image('background', 'bg.png');
         this.load.image('logo', 'logo.png');  
-        this.maze = new Maze(MAZE_WIDTH, MAZE_HEIGHT);   
-        this.maze.removeRandomWalls()   
-    }
 
-    createGraphics() {
-        // Create a graphics object
-        const graphics = this.add.graphics({ x: MAZE_X, y: MAZE_Y });
-        
-    
-        // Draw the maze
-        drawMaze(graphics, this.maze);
-    
-        // Return the graphics object
-        return graphics;
+        this.maze = new Maze(MAZE_WIDTH, MAZE_HEIGHT);  
+        this.maze.removeRandomWallsStart(this.maze.getCell(0, 0)) 
+        //this.maze.removeRandomWalls()   
     }
-    
-
 
     create ()
     {
         
-        this.add.image(512, 384, 'background')
+        //this.add.image(512, 384, 'background')
         //this.add.image(512, 350, 'logo').setDepth(100)
 
         /*
@@ -97,9 +75,25 @@ export class Game extends Scene
             stroke: '#000000', strokeThickness: 8,
             align: 'center'
         }).setOrigin(0.5).setDepth(100)        
-
         */
-        const gr = this.createGraphics();
-        //Phaser.Display.Align.In.Center(block, pic);
+        
+        this.mazeTexture = this.textures.createCanvas('maze',
+            MAZE_WIDTH * CELL_SIZE+10, MAZE_HEIGHT * CELL_SIZE + 10);
+
+        this.c = this.mazeTexture.getSourceImage();
+        const ctx = this.c.getContext('2d');
+
+        drawCanvasMaze(ctx, this.maze)
+
+        this.add.image(MAZE_X, MAZE_Y, 'maze').setOrigin(0);
+    }    
+
+    update () {         
+        if(this.maze.removeRandomWall())           
+        {
+            const ctx = this.c.getContext('2d');
+            drawCanvasMaze(ctx, this.maze)
+            this.mazeTexture.refresh()
+        }         
     }
 }
