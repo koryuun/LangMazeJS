@@ -14,9 +14,13 @@ export class Wall extends BaseWall {
         this.cells = [cell1, cell2]
     }
 
+    getCells() {
+        return [...this.cells]
+    }
+
     remove() {
         this.cells[0].removeWall(this)   
-        this.cells[1].removeWall(this)
+        this.cells[1].removeWall(this)        
     }
 
     getOtherCell( cell ) {
@@ -174,7 +178,7 @@ export class Maze {
         let wall = null
         while (wall === null) {
             if (this.stack.length === 0) {
-                return false
+                return null
             }
             cell = this.stack.at(-1)
             wall = cell.getRandomWall()
@@ -184,9 +188,13 @@ export class Maze {
         }
 
         const nextCell = wall.getOtherCell(cell)
+        const changedCells = [
+            {x: cell.getX(), y: cell.getY()},
+            {x: nextCell.getX(), y: nextCell.getY()}
+        ]
         wall.remove()
         this.stack.push(nextCell)
-        return true
+        return changedCells
     }
 
     removeRandomWalls() {

@@ -1,99 +1,98 @@
 import { Scene } from 'phaser'
-import { Maze, ExternWall, Wall } from '../Maze'
+import { Maze } from '../Maze.js'
 
 
-const CELL_SIZE = 20
-const MAZE_WIDTH = 30
-const MAZE_HEIGHT = 30
+const TILE_NO_WALL = 0
+const TILE_LEFT_WALL = 1
+const TILE_TOP_WALL = 2
+const TILE_LEFT_TOP_WALL = 3
 
-const MAZE_X = 400 - (MAZE_WIDTH * CELL_SIZE) / 2
-const MAZE_Y = 400 - (MAZE_HEIGHT * CELL_SIZE) / 2
 
-function drawCanvasCell(ctx, cell, x, y) {
-    ctx.beginPath()
-    if(cell.getLeftWall()) {        
-        ctx.moveTo(x, y)
-        ctx.lineTo(x, y + CELL_SIZE)
+const MAZE_WIDTH = 16
+const MAZE_HEIGHT = 16
+
+function getWallTile(maze, x, y) {
+    if(x  === maze.getWidth() && y === maze.getHeight()) {
+        return TILE_NO_WALL
     }
-
-    if(cell.getTopWall()) {
-        ctx.moveTo(x, y)
-        ctx.lineTo(x + CELL_SIZE, y)
+    if(x  === maze.getWidth() && y < maze.getHeight()) {
+        return TILE_LEFT_WALL
     }
+    if(x  < maze.getWidth() && y === maze.getHeight()) {
+        return TILE_TOP_WALL
+    }
+    const cell = maze.getCell(x, y)
+    const leftWall = cell.getLeftWall()
+    const topWall = cell.getTopWall()
+    if(leftWall && topWall) {
+        return TILE_LEFT_TOP_WALL
+    }
+    if(leftWall) {
+        return TILE_LEFT_WALL
+    }
+    if(topWall) {
+        return TILE_TOP_WALL
+    }
+    return TILE_NO_WALL
     
-    if(cell.getRightWall() instanceof ExternWall) {
-        ctx.moveTo(x + CELL_SIZE, y)
-        ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE)
-    }
 
-    if(cell.getBottomWall() instanceof ExternWall) {
-        ctx.moveTo(x, y + CELL_SIZE)
-        ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE)
-    }
-
-    ctx.stroke()
 }
 
-function drawCanvasMaze(ctx, maze) {
-    ctx.clearRect(0, 0, MAZE_WIDTH * CELL_SIZE, MAZE_HEIGHT * CELL_SIZE);
 
-    for (let y = 0; y < maze.getHeight(); y++) {
-        for (let x = 0; x < maze.getWidth(); x++) {
-            const cell = maze.getCell(x, y);
-            drawCanvasCell(ctx, cell, x * CELL_SIZE, y * CELL_SIZE)
+function createMazeMapData(maze) {
+    const mapData = new Array(maze.getHeight() + 1)
+    for (let y = 0; y <= maze.getHeight(); y++) {
+        mapData[y] = new Array(maze.getWidth() + 1)
+        for (let x = 0; x <= maze.getWidth(); x++) {
+           mapData[y][x] = getWallTile(maze, x, y)             
         }
     }
+    return mapData
 }
+
 
 export class Game extends Scene
 {
     constructor () {    
-        super('Game');
+        super('Game')
+        this.isMazeDrawingInProgress = true
     }
 
     preload (){
         this.load.setPath('assets');
-        
-        this.load.image('background', 'bg.png');
-        this.load.image('logo', 'logo.png');  
-
-        this.maze = new Maze(MAZE_WIDTH, MAZE_HEIGHT);  
-        this.maze.removeRandomWallsStart(this.maze.getCell(0, 0)) 
-        //this.maze.removeRandomWalls()   
+        this.load.image('tiles', 'bricks.png')
+        this.load.image('walls', 'walls.png')        
     }
 
     create ()
     {
-        
-        //this.add.image(512, 384, 'background')
-        //this.add.image(512, 350, 'logo').setDepth(100)
+        this.maze = new Maze(MAZE_WIDTH, MAZE_HEIGHT)        
+        //this.maze.removeRandomWalls()
+        this.mapData = createMazeMapData(this.maze)
 
-        /*
-        this.add.text(512, 490, 
-            'Это начало опыта с Phaser', {
-            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
-            stroke: '#000000', strokeThickness: 8,
-            align: 'center'
-        }).setOrigin(0.5).setDepth(100)        
-        */
-        
-        this.mazeTexture = this.textures.createCanvas('maze',
-            MAZE_WIDTH * CELL_SIZE+10, MAZE_HEIGHT * CELL_SIZE + 10);
+        this.map = this.make.tilemap({ data: this.mapData, tileWidth: 32, tileHeight: 32 })
+        const tileset = this.map.addTilesetImage('walls')
+        this.layer = this.map.createLayer(0, tileset)        
 
-        this.c = this.mazeTexture.getSourceImage();
-        const ctx = this.c.getContext('2d');
-
-        drawCanvasMaze(ctx, this.maze)
-
-        this.add.image(MAZE_X, MAZE_Y, 'maze').setOrigin(0);
+        this.maze.removeRandomWallsStart(this.maze.getCell(0, 0))
     }    
 
-    update () {         
-        if(this.maze.removeRandomWall())           
-        {
-            const ctx = this.c.getContext('2d');
-            drawCanvasMaze(ctx, this.maze)
-            this.mazeTexture.refresh()
-        }         
+    update () {  
+        if(this.isMazeDrawingInProgress) {        
+            this.mazeDrawAnimation()
+        }
+    }
+
+    mazeDrawAnimation() {
+        const changedCells = this.maze.removeRandomWall()        
+        if(changedCells) {            
+            let {x, y} = changedCells[0]
+            let {x:x1, y:y1} = changedCells[1]            
+            this.map.putTileAt(getWallTile(this.maze, x, y), x, y)            
+            this.map.putTileAt(getWallTile(this.maze, x1, y1), x1, y1)
+        }
+        else {
+            this.isMazeDrawingInProgress = false
+        }
     }
 }

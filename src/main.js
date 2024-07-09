@@ -5,8 +5,8 @@ import { AUTO, Scale,Game, CANVAS } from 'phaser';
 //  https://newdocs.phaser.io/docs/3.70.0/Phaser.Types.Core.GameConfig
 const config = {
     type: CANVAS,
-    width: 800,
-    height: 800,
+    width: 512 + 8,
+    height: 512 + 8,
     parent: 'game-container',
     backgroundColor: '#FFFFFF',
     scale: {
